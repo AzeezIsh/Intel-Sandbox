@@ -1,0 +1,60 @@
+Epoch : 1
+Train Accuracy
+31.65 %
+Test Accuracy
+32.1 %
+-------------------------
+Epoch : 2
+Train Accuracy
+34.57 %
+Test Accuracy
+34.7 %
+-------------------------
+Epoch : 3
+Train Accuracy
+47.65 %
+Test Accuracy
+44.9 %
+-------------------------
+Epoch : 4
+Train Accuracy
+41.23 %
+Test Accuracy
+41.1 %
+-------------------------
+Epoch : 5
+Train Accuracy
+56.23 %
+Test Accuracy
+56.4 %
+-------------------------
+Epoch : 6
+Train Accuracy
+60.88 %
+Test Accuracy
+61.6 %
+-------------------------
+Epoch : 7
+Train Accuracy
+52.62 %
+Test Accuracy
+53.3 %
+-------------------------
+Epoch : 8
+Train Accuracy
+58.25 %
+Test Accuracy
+60.4 %
+-------------------------
+Epoch : 9
+Train Accuracy
+40.6 %
+Test Accuracy
+40.1 %
+-------------------------
+Epoch : 10
+Train Accuracy
+37.55 %
+Test Accuracy
+36.7 %
+-------------------------
