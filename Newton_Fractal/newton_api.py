@@ -1,15 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[21]:
-
-
-get_ipython().run_line_magic('pip', 'install array-api-strict')
-
-
-# In[22]:
-
-
+# %%
 # import numpy as np
 import array_api_strict as np
 import matplotlib.pyplot as plt
@@ -72,116 +61,141 @@ def iterate_vectorized(z):
 
     return iterations  # Num iterations for each element in z
 
-
-# In[23]:
-
-
+# %%
 render(imgsize=600)
 
-
-# In[24]:
-
-
-import matplotlib.pyplot as plt
-
-def find_roots(degree):
-    """Find the roots of unity for a given degree."""
-    return np.array([np.exp(2j * np.pi * k / degree) for k in range(degree)])
-
-def f(z, degree):
-    return z**degree - 1
-
-def df(z, degree):
-    return degree*z**(degree-1)
-
-def iterate(z, roots):
-    degree = len(roots)
-    for iteration in range(50):  # Max iterations
-        dz = df(z, degree)
-        with np.errstate(all='ignore'):
-            z_new = z - f(z, degree) / dz
-            if np.all(np.abs(z_new - z) < 1e-4):
-                break
-            z = z_new
-    # Measure distance to each root and find the closest one
-    distances = np.abs(z - roots[:, np.newaxis])
-    closest_root = np.argmin(distances, axis=0)
-    # Check convergence to a root
-    # converged = np.min(distances, axis=0) < 1e-4
-    #assert np.all(converged), "Some points did not converge to a root"
-    return closest_root
-
-def render(imgsize, degree):
-    roots = find_roots(degree)
-    y, x = np.ogrid[1 : -1 : imgsize * 2j, -1 : 1 : imgsize * 2j]
-    z = x + y * 1j
-
-    vectorized_iterate = np.vectorize(iterate, excluded=['roots'])
-    img = vectorized_iterate(z, roots=roots)
-
-    # Simple color mapping for visualization
-    img_color = np.select([img == 0, img == 1, img == 2], [0.5, 0, 1], default=np.nan)
-
-    plt.imshow(img_color, cmap='gray')
-    plt.axis("off")
-    plt.show()
-
-# Example usage for cubic roots
-render(imgsize=100, degree=3)
-
-
-# In[ ]:
-
-
-import numpy as np
+# %%
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-
+import math
 
 def find_roots(degree):
-    """Find the roots of unity for a given degree."""
-    return np.array([np.exp(2j * np.pi * k / degree) for k in range(degree)])
+    """Find the roots of unity for a given degree. These are complex numbers 
+    that, when raised to the 'degree', equal 1."""
+    # Super awkward manipulation for strict compliance
+    roots = [np.e ** np.asarray(2j * np.pi * k / degree, dtype=np.complex64) for k in range(degree)]
+    return np.asarray(roots, dtype=np.complex128)
 
 def f(z, degree):
+    """Computes the polynomial \( z^degree - 1 \)."""
     return z**degree - 1
 
 def df(z, degree):
-    return degree*z**(degree-1)
+    """Derivative of the polynomial \( z^degree - 1 \)."""
+    return degree * z**(degree - 1)
 
-def iterate(z, roots):
-    degree = len(roots)
-    for iteration in range(50):  # Max iterations
-        dz = df(z, degree)
-        with np.errstate(all='ignore'):
-            z_new = z - f(z, degree) / dz
-            if np.all(np.abs(z_new - z) < 1e-4):
-                break
-            z = z_new
-    # Measure distance to each root and find the closest one
-    distances = np.abs(z - roots[:, np.newaxis])
-    closest_root = np.argmin(distances, axis=0)
-    # Check convergence to a root
-    # converged = np.min(distances, axis=0) < 1e-4
-    #assert np.all(converged), "Some points did not converge to a root"
-    return closest_root
+def iterate_vectorized(z, roots, max_iterations=50, tolerance=1e-4):
+    iterations = np.zeros(z.shape, dtype=np.float32)  # Store the index of closest root for each point
+    for _ in range(max_iterations):
+        length = roots.shape[0] # Strict API doesn't do length
+        dz = df(z, length)  # Calculate the derivative for the current z
+        z_new = z - f(z, length) / dz  # Newton's method update
+        converged = np.abs(z_new - z) < tolerance  # Check for convergence
+        z[~converged] = z_new[~converged]  # Update only non-converged entries
+        if np.all(converged):
+            break
+
+    # Calculate the index of the closest root for each point using a manual tolerance check
+    for i, root in enumerate(roots):
+        mask = np.abs(z - root) < tolerance
+        iterations[mask] = i
+
+    return iterations
 
 def render(imgsize, degree):
+    # Target points for convergence based on roots
     roots = find_roots(degree)
-    y, x = np.ogrid[1 : -1 : imgsize * 2j, -1 : 1 : imgsize * 2j]
-    z = x + y * 1j
+    # Linear space for x-axis, [-1,1]. "Real" part of our complex numbers.
+    x = np.linspace(-1, 1, imgsize)
+    # Linear space for  y-axis, [1, -1] (inverse for correct orientation)
+    # Imaginary part of our complex numbers.
+    y = np.linspace(1, -1, imgsize)
+    # Meshgrid which constructs a 2D grid from the 1D arrays of x and y values.
+    # Represent the complex plane, where each point (pixel) has a complex number.
+    X, Y = np.meshgrid(x, y)
+    # Real parts from X and imaginary parts from Y, combined to form complex numbers z = x + yi.
+    z = np.asarray(X,dtype=np.complex64) + 1j * np.asarray(Y,dtype=np.complex64)
 
-    vectorized_iterate = np.vectorize(iterate, excluded=['roots'])
-    img = vectorized_iterate(z, roots=roots)
+    img = iterate_vectorized(z, roots)
 
-    # INTEL color mapping for visualization
-    hex_colors = ['#15b8fc', '#6ccffc', '#0773c4']
+    # Customize the color mapping for visualization
+    hex_colors = ['#15b8fc', '#6ccffc', '#0773c4']  # Intel color palette
     cmap = ListedColormap(hex_colors)
 
     plt.imshow(img, cmap=cmap)
-    plt.title("Intel Colors -- Seventh Degree Newton Fractal")
+    plt.title(f"Newton Fractal for Degree {degree} Roots")
     plt.axis("off")
     plt.show()
 
-# Example usage for cubic roots
-render(imgsize=100, degree=7)
+# Example usage
+render(imgsize=1000, degree=5)
+
+
+# %%
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import math
+
+def find_roots(degree):
+    """Find the roots of unity for a given degree. These are complex numbers 
+    that, when raised to the 'degree', equal 1."""
+    # Super awkward manipulation for strict compliance
+    roots = [np.e ** np.asarray(2j * np.pi * k / degree, dtype=np.complex64) for k in range(degree)]
+    return np.asarray(roots, dtype=np.complex128)
+
+def f(z, degree):
+    """Computes the polynomial \( z^degree - 1 \)."""
+    return z**degree - 1
+
+def df(z, degree):
+    """Derivative of the polynomial \( z^degree - 1 \)."""
+    return degree * z**(degree - 1)
+
+def iterate_vectorized(z, roots, max_iterations=50, tolerance=1e-4):
+    iterations = np.zeros(z.shape, dtype=np.float32)  # Store the index of closest root for each point
+    for _ in range(max_iterations):
+        length = roots.shape[0] # Strict API doesn't do length
+        dz = df(z, length)  # Calculate the derivative for the current z
+        z_new = z - f(z, length) / dz  # Newton's method update
+        converged = np.abs(z_new - z) < tolerance  # Check for convergence
+        z[~converged] = z_new[~converged]  # Update only non-converged entries
+        if np.all(converged):
+            break
+
+    # Calculate the index of the closest root for each point using a manual tolerance check
+    for i, root in enumerate(roots):
+        mask = np.abs(z - root) < tolerance
+        iterations[mask] = i
+
+    return iterations
+
+def render(imgsize, degree):
+    # Target points for convergence based on roots
+    roots = find_roots(degree)
+    # Linear space for x-axis, [-1,1]. "Real" part of our complex numbers.
+    x = np.linspace(-1, 1, imgsize)
+    # Linear space for  y-axis, [1, -1] (inverse for correct orientation)
+    # Imaginary part of our complex numbers.
+    y = np.linspace(1, -1, imgsize)
+    # Meshgrid which constructs a 2D grid from the 1D arrays of x and y values.
+    # Represent the complex plane, where each point (pixel) has a complex number.
+    X, Y = np.meshgrid(x, y)
+    # Real parts from X and imaginary parts from Y, combined to form complex numbers z = x + yi.
+    z = np.asarray(X,dtype=np.complex64) + 1j * np.asarray(Y,dtype=np.complex64)
+
+    img = iterate_vectorized(z, roots)
+
+    # Customize the color mapping for visualization
+    hex_colors = ['#FFFFFF', '#000000', '#777777']  # Black and gray color palette
+    cmap = ListedColormap(hex_colors)
+
+    plt.imshow(img, cmap=cmap)
+    plt.title(f"Newton Fractal for Degree {degree} Roots")
+    plt.axis("off")
+    plt.show()
+
+# Example usage
+render(imgsize=1000, degree=3)
+
+
 
