@@ -1,5 +1,4 @@
 # %%
-# import numpy as np
 import array_api_strict as np
 # import array_api_compat.numpy as np
 def viterbi_np(obs, states, start_p, trans_p, emit_p):
